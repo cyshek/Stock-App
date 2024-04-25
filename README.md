@@ -1,5 +1,5 @@
 # Ticker-symbol-typer
-A program I made that navigates through a list of stocks by pressing either the up or down arrow key. Makes it faster to sift through a watchlist.
+A program that allows users to navigate through a stock watchlist using the up and down arrow keys. When a key is pressed, the program types the current stock ticker symbol and quickly updates to type the next stock in the chosen direction. This feature significantly speeds up the process of reviewing a watchlist.
 
 
 - Close the GUI tab to terminate
