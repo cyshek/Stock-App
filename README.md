@@ -4,6 +4,8 @@ A program that allows users to navigate through a stock watchlist using the up a
 
 - Close the GUI tab to terminate
 - Press “arrow down & up” keys to navigate the watchlist
+- Press "arrow right" to open up a new tab with the 5-year chart of the current ticker symbol in Google
+- Press "arrow left" to close the tab
 - You can add or remove stocks by pressing either respective button
 
 
@@ -12,6 +14,3 @@ To build the project, run:
 pyinstaller --onefile --noconsole stocks.py
 ```
 Then move the `ticker_symbols.txt` to the directory with the application.
-
-
-You can also run `watcher.py` to recreate the app whenever you save backend changes in `stocks.py`.
