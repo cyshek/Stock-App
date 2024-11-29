@@ -1,19 +1,16 @@
-from pynput.keyboard import Controller, Key, Listener
-import time
+import customtkinter as ctk
+from tkinter import simpledialog, messagebox
 import os
-import tkinter as tk
-from tkinter import messagebox, simpledialog
 import threading
-from pynput.mouse import Button, Controller as MouseController
+from pynput.keyboard import Controller, Key, Listener
 
 class TypingProgram:
     def __init__(self):
-        """Initialize the program, load ticker symbols, set defaults, and create the GUI."""
+        """Initialize the program, load ticker symbols, and set up the GUI."""
         self.load_ticker_symbols()
         self.current_index = 0
         self.prev_index = 0
         self.prev_key_value = ""
-        self.mouse = MouseController()
         self.controller = Controller()
         self.create_gui()
 
@@ -31,142 +28,105 @@ class TypingProgram:
             for ticker_symbol in self.ticker_symbols:
                 file.write(ticker_symbol + "\n")
 
-    def type_word(self, index):
-        """Type out the ticker symbol at the given index followed by the 'Enter' key."""
-        word_to_type = self.ticker_symbols[index]
-        for char in word_to_type:
-            self.controller.type(char)
-            time.sleep(0.01)  # Pause slightly between each character
-        # Simulate pressing the 'Enter' key
-        self.controller.press(Key.enter)
-        self.controller.release(Key.enter)
-
     def add_ticker_symbol(self):
         """Prompt the user to input a new ticker symbol and add it to the list."""
         new_ticker = simpledialog.askstring("Add Ticker Symbol", "Enter the new ticker symbol:")
         if new_ticker:
             self.ticker_symbols.append(new_ticker.upper())
             self.save_ticker_symbols()
-            messagebox.showinfo("Ticker Symbol Added", f"Added '{new_ticker.upper()}' to the ticker symbols list.")
+            messagebox.showinfo("Success", f"Added '{new_ticker.upper()}' to the list.")
+            self.update_ticker_list()  # Automatically refresh the list
 
-    def remove_ticker_symbol(self):
-        """Prompt the user to remove a ticker symbol from the list."""
-        if self.ticker_symbols:
-            remove_ticker = simpledialog.askstring("Remove Ticker Symbol", "Enter the ticker symbol to remove:")
-            if remove_ticker and remove_ticker.upper() in self.ticker_symbols:
-                self.ticker_symbols.remove(remove_ticker.upper())
-                self.save_ticker_symbols()
-                messagebox.showinfo("Ticker Symbol Removed", f"Removed '{remove_ticker.upper()}' from the ticker symbols list.")
-            else:
-                messagebox.showwarning("Invalid Ticker Symbol", f"'{remove_ticker}' is not in the ticker symbols list.")
+    def remove_ticker_symbol(self, ticker_to_remove=None):
+        """Remove a ticker symbol directly from the list."""
+        if ticker_to_remove and ticker_to_remove.upper() in self.ticker_symbols:
+            self.ticker_symbols.remove(ticker_to_remove.upper())
+            self.save_ticker_symbols()
+            messagebox.showinfo("Success", f"Removed '{ticker_to_remove.upper()}' from the list.")
+            self.update_ticker_list()  # Automatically refresh the list
         else:
-            messagebox.showwarning("No Ticker Symbols", "No ticker symbols to remove.")
+            messagebox.showerror("Error", "Ticker symbol not found.")
 
     def create_gui(self):
-        """Create the main GUI window for adding/removing ticker symbols."""
-        self.root = tk.Tk()
-        self.root.title("Ticker Symbol Typing Program")
-        self.root.geometry("300x200")
+        """Create the main GUI window with a scrollable ticker list on the main page."""
+        self.root = ctk.CTk()
+        self.root.title("Ticker Symbol Manager")
+        self.root.geometry("800x700")  # Adjusted GUI size
 
-        add_button = tk.Button(self.root, text="Add Ticker Symbol", command=self.add_ticker_symbol)
-        add_button.pack(pady=30)
+        # Main page layout
+        title_label = ctk.CTkLabel(self.root, text="Stock Ticker Manager", font=("Arial", 28, "bold"))
+        title_label.pack(pady=20)
 
-        remove_button = tk.Button(self.root, text="Remove Ticker Symbol", command=self.remove_ticker_symbol)
-        remove_button.pack(pady=30)
+        # Scrollable frame for ticker list
+        self.scrollable_frame = ctk.CTkScrollableFrame(self.root, height=500, width=750)
+        self.scrollable_frame.pack(pady=10)
 
-        self.status_label = tk.Label(self.root, text="")
-        self.status_label.pack(pady=10)
+        # Add button at the bottom
+        add_button = ctk.CTkButton(self.root, text="Add Ticker Symbol", command=self.add_ticker_symbol, width=200)
+        add_button.pack(pady=20)
 
-        # Handle window close event
-        self.root.protocol("WM_DELETE_WINDOW", self.terminate_program)
+        self.update_ticker_list()
+
+    def update_ticker_list(self):
+        """Update the ticker list display with the current symbols."""
+        # Clear previous widgets
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
+
+        # Display all ticker symbols
+        for symbol in self.ticker_symbols:
+            # Create a frame for each ticker symbol row
+            symbol_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#f0f0f0")  # Default background
+            symbol_frame.pack(fill="x", pady=2)
+
+            # Apply hover effect to the entire frame
+            symbol_frame.bind("<Enter>", lambda e, frame=symbol_frame: frame.configure(fg_color="#d3d3d3"))
+            symbol_frame.bind("<Leave>", lambda e, frame=symbol_frame: frame.configure(fg_color="#f0f0f0"))
+
+            # Add ticker symbol label
+            ticker_label = ctk.CTkLabel(symbol_frame, text=symbol, width=500, anchor="w", font=("Arial", 16))
+            ticker_label.pack(side="left", padx=10)
+
+            # Add remove button
+            remove_button = ctk.CTkButton(symbol_frame, text="Remove", width=100,
+                                          command=lambda sym=symbol: self.remove_ticker_symbol(sym))
+            remove_button.pack(side="right", padx=10)
 
     def terminate_program(self):
-        """Terminate the listener and close the GUI when the window is closed."""
-        self.listener.stop()  # Stop the keyboard listener thread
-        self.root.destroy()   # Destroy the GUI window
+        """Terminate the keyboard listener and close the GUI."""
+        if hasattr(self, "listener"):
+            self.listener.stop()
+        self.root.destroy()
 
     def on_press(self, key):
-        """Handle key press events to trigger actions based on arrow key inputs."""
+        """Handle key press events to manage the typing of ticker symbols."""
         try:
             if key == Key.down:
-                # Down arrow key: Type current ticker symbol and move to the next
-                if self.prev_key_value == "up":  # Special handling for up-down sequence
-                    self.prev_index = self.current_index
-                    self.current_index = (self.current_index + 1) % len(self.ticker_symbols)
-                    self.prev_key_value = "up"
-                    self.type_word(self.current_index)
-                    return
-
                 self.type_word(self.current_index)
                 self.prev_index = self.current_index
                 self.current_index = (self.current_index + 1) % len(self.ticker_symbols)
-                self.prev_key_value = "down"
 
             elif key == Key.up:
-                # Up arrow key: Type the previous ticker symbol
-                if self.prev_key_value == "down":  # Special handling for down-up sequence
-                    self.current_index = self.prev_index
-                    self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
-                    self.prev_key_value = "down"
-                    self.type_word(self.prev_index)
-                    return
-
-                self.current_index = self.prev_index
                 self.type_word(self.prev_index)
+                self.current_index = self.prev_index
                 self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
-                self.prev_key_value = "up"
+        except IndexError:
+            pass
 
-            elif key == Key.left:
-                # Left arrow key: Close current tab and switch to the previous tab
-                self.controller.press(Key.ctrl_l)
-                self.controller.press('w')
-                self.controller.release('w')
-                self.controller.release(Key.ctrl_l)
-
-                self.controller.press(Key.ctrl_l)
-                self.controller.press(Key.shift_l)
-                self.controller.press(Key.tab)
-                self.controller.release(Key.tab)
-                self.controller.release(Key.shift_l)
-                self.controller.release(Key.ctrl_l)
-
-                # Simulate mouse click at a specific location
-                self.mouse.position = (500, 200)  # Replace with actual coordinates
-                self.mouse.click(Button.left, 1)
-
-            elif key == Key.right:
-                # Right arrow key: Open a new tab, type the ticker symbol + ' stock'
-                current_ticker = self.ticker_symbols[self.prev_index]
-                
-                self.controller.press(Key.ctrl_l)
-                self.controller.press('t')
-                self.controller.release('t')
-                self.controller.release(Key.ctrl_l)
-
-                # Type the ticker symbol and ' stock'
-                word_to_type = current_ticker + ' stock'
-                for char in word_to_type:
-                    self.controller.type(char)
-                    time.sleep(0.01)
-
-                self.controller.press(Key.enter)
-                self.controller.release(Key.enter)
-
-                time.sleep(1)
-
-                # Simulate mouse click at a specific location
-                self.mouse.position = (590, 530)  # Replace with actual coordinates
-                self.mouse.click(Button.left, 1)
-
-        except AttributeError:
-            pass  # Ignore special keys that don't have a character representation
+    def type_word(self, index):
+        """Type the ticker symbol at the given index."""
+        word_to_type = self.ticker_symbols[index]
+        for char in word_to_type:
+            self.controller.type(char)
+        self.controller.press(Key.enter)
+        self.controller.release(Key.enter)
 
     def start(self):
-        """Start the keyboard listener and launch the GUI."""
+        """Start the program with a keyboard listener and the GUI."""
         self.listener = Listener(on_press=self.on_press)
-        threading.Thread(target=self.listener.start).start()  # Start listener in a separate thread
-        time.sleep(0.1)  # Short delay to ensure listener is ready
-        self.root.mainloop()  # Start the GUI main loop
+        threading.Thread(target=self.listener.start).start()
+        self.root.mainloop()
+
 
 # Start the TypingProgram
 if __name__ == "__main__":
