@@ -1,17 +1,28 @@
 import customtkinter as ctk
 from tkinter import simpledialog, messagebox
 import os
+import time
 import threading
 from pynput.keyboard import Controller, Key, Listener
+from pynput.mouse import Button, Controller as MouseController
+import platform
 
 class TypingProgram:
     def __init__(self):
         """Initialize the program, load ticker symbols, and set up the GUI."""
         self.load_ticker_symbols()
         self.current_index = 0
-        self.prev_index = 0
+        self.prev_index = (len(self.ticker_symbols) - 1) % len(self.ticker_symbols)
         self.prev_key_value = ""
         self.controller = Controller()
+        self.mouse = MouseController()
+        
+        # Determine the appropriate modifier key for shortcuts
+        if platform.system() == "Darwin":  # macOS
+            self.shortcut_key = Key.cmd
+        else:  # Windows/Linux
+            self.shortcut_key = Key.ctrl_l
+        
         self.create_gui()
 
     def load_ticker_symbols(self):
@@ -35,33 +46,37 @@ class TypingProgram:
             self.ticker_symbols.append(new_ticker.upper())
             self.save_ticker_symbols()
             messagebox.showinfo("Success", f"Added '{new_ticker.upper()}' to the list.")
-            self.update_ticker_list()  # Automatically refresh the list
+            self.update_ticker_list()
+            self.root.focus_force()
 
     def remove_ticker_symbol(self, ticker_to_remove=None):
         """Remove a ticker symbol directly from the list."""
-        if ticker_to_remove and ticker_to_remove.upper() in self.ticker_symbols:
-            self.ticker_symbols.remove(ticker_to_remove.upper())
-            self.save_ticker_symbols()
-            messagebox.showinfo("Success", f"Removed '{ticker_to_remove.upper()}' from the list.")
-            self.update_ticker_list()  # Automatically refresh the list
-        else:
-            messagebox.showerror("Error", "Ticker symbol not found.")
+        if ticker_to_remove:
+            ticker_to_remove_upper = ticker_to_remove.upper()
+            for symbol in self.ticker_symbols:
+                if symbol.upper() == ticker_to_remove_upper:
+                    self.ticker_symbols.remove(symbol)
+                    self.save_ticker_symbols()
+                    messagebox.showinfo("Success", f"Removed '{symbol}' from the list.")
+                    self.update_ticker_list()
+                    self.root.focus_force()
+                    return
+        messagebox.showerror("Error", "Ticker symbol not found.")
 
     def create_gui(self):
-        """Create the main GUI window with a scrollable ticker list on the main page."""
+        """Create the main GUI window."""
         self.root = ctk.CTk()
         self.root.title("Ticker Symbol Manager")
-        self.root.geometry("800x700")  # Adjusted GUI size
+        self.root.geometry("800x700")
 
-        # Main page layout
+        ctk.set_appearance_mode("light")
+
         title_label = ctk.CTkLabel(self.root, text="Stock Ticker Manager", font=("Arial", 28, "bold"))
         title_label.pack(pady=20)
 
-        # Scrollable frame for ticker list
         self.scrollable_frame = ctk.CTkScrollableFrame(self.root, height=500, width=750)
         self.scrollable_frame.pack(pady=10)
 
-        # Add button at the bottom
         add_button = ctk.CTkButton(self.root, text="Add Ticker Symbol", command=self.add_ticker_symbol, width=200)
         add_button.pack(pady=20)
 
@@ -69,28 +84,22 @@ class TypingProgram:
 
     def update_ticker_list(self):
         """Update the ticker list display with the current symbols."""
-        # Clear previous widgets
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
-        # Display all ticker symbols
         for symbol in self.ticker_symbols:
-            # Create a frame for each ticker symbol row
-            symbol_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#f0f0f0")  # Default background
-            symbol_frame.pack(fill="x", pady=2)
+            symbol_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#f0f0f0", height=50)
+            symbol_frame.pack(fill="x", pady=5)
 
-            # Apply hover effect to the entire frame
             symbol_frame.bind("<Enter>", lambda e, frame=symbol_frame: frame.configure(fg_color="#d3d3d3"))
             symbol_frame.bind("<Leave>", lambda e, frame=symbol_frame: frame.configure(fg_color="#f0f0f0"))
 
-            # Add ticker symbol label
-            ticker_label = ctk.CTkLabel(symbol_frame, text=symbol, width=500, anchor="w", font=("Arial", 16))
-            ticker_label.pack(side="left", padx=10)
+            ticker_label = ctk.CTkLabel(symbol_frame, text=symbol, font=("Arial", 16), anchor="w")
+            ticker_label.place(relx=0.02, rely=0.5, anchor="w")
 
-            # Add remove button
             remove_button = ctk.CTkButton(symbol_frame, text="Remove", width=100,
                                           command=lambda sym=symbol: self.remove_ticker_symbol(sym))
-            remove_button.pack(side="right", padx=10)
+            remove_button.place(relx=0.95, rely=0.5, anchor="e")
 
     def terminate_program(self):
         """Terminate the keyboard listener and close the GUI."""
@@ -99,18 +108,66 @@ class TypingProgram:
         self.root.destroy()
 
     def on_press(self, key):
-        """Handle key press events to manage the typing of ticker symbols."""
+        """Handle key press events to trigger actions based on arrow key inputs."""
         try:
             if key == Key.down:
+                # Down arrow key: Type current ticker symbol and move to the next
+                if self.prev_key_value == "up":  # Special handling for up-down sequence
+                    self.prev_index = (self.current_index + 1) % len(self.ticker_symbols)
+                    self.current_index = (self.current_index + 2) % len(self.ticker_symbols)
+                    self.prev_key_value = "up"
+                    self.type_word(self.current_index)
+                    print("Current Index: ", self.current_index)
+                    print("Prev Index: ", self.prev_index)
+                    return
+
                 self.type_word(self.current_index)
                 self.prev_index = self.current_index
                 self.current_index = (self.current_index + 1) % len(self.ticker_symbols)
+                self.prev_key_value = "down"
 
             elif key == Key.up:
-                self.type_word(self.prev_index)
+                # Up arrow key: Type the previous ticker symbol
+                if self.prev_key_value == "down":  # Special handling for down-up sequence
+                    self.current_index = self.prev_index
+                    self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
+                    self.prev_key_value = "down"
+                    self.type_word(self.prev_index)
+                    return
+                print("Current Index: ", self.current_index)
+                print("Prev Index: ", self.prev_index)
+                self.type_word(self.current_index)
                 self.current_index = self.prev_index
                 self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
-        except IndexError:
+                self.prev_key_value = "up"
+
+            elif key == Key.left:
+                self.controller.press(self.shortcut_key)
+                self.controller.press('w')
+                self.controller.release('w')
+                self.controller.release(self.shortcut_key)
+
+            elif key == Key.right:
+                current_ticker = self.ticker_symbols[self.prev_index]
+                print("Prev Index: ", self.ticker_symbols[self.prev_index])
+                print("Current Index: ", self.ticker_symbols[self.current_index])
+
+                self.controller.press(self.shortcut_key)
+                self.controller.press('t')
+                self.controller.release('t')
+                self.controller.release(self.shortcut_key)
+
+                word_to_type = current_ticker + ' stock'
+                for char in word_to_type:
+                    self.controller.type(char)
+                    time.sleep(0.01)
+
+                self.controller.press(Key.enter)
+                self.controller.release(Key.enter)
+
+                time.sleep(1)
+
+        except AttributeError:
             pass
 
     def type_word(self, index):
