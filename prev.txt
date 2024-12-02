@@ -7,15 +7,71 @@ from pynput.keyboard import Controller, Key, Listener
 from pynput.mouse import Button, Controller as MouseController
 import platform
 
+class TickerNode:
+    """Node for the circular doubly-linked list."""
+    def __init__(self, symbol):
+        self.symbol = symbol
+        self.next = None
+        self.prev = None
+
+class TickerLinkedList:
+    """Circular doubly-linked list to manage ticker symbols."""
+    def __init__(self):
+        self.head = None
+
+    def add(self, symbol):
+        """Add a ticker symbol to the circular list."""
+        new_node = TickerNode(symbol)
+        if not self.head:
+            self.head = new_node
+            self.head.next = self.head
+            self.head.prev = self.head
+        else:
+            tail = self.head.prev
+            tail.next = new_node
+            new_node.prev = tail
+            new_node.next = self.head
+            self.head.prev = new_node
+
+    def remove(self, symbol):
+        """Remove a ticker symbol from the circular list."""
+        if not self.head:
+            return False  # Empty list
+        current = self.head
+        while True:
+            if current.symbol == symbol:
+                if current == self.head and current.next == self.head:
+                    # Only one node in the list
+                    self.head = None
+                else:
+                    current.prev.next = current.next
+                    current.next.prev = current.prev
+                    if current == self.head:
+                        self.head = current.next
+                return True
+            current = current.next
+            if current == self.head:
+                break
+        return False
+
+    def __iter__(self):
+        """Iterate through the list."""
+        current = self.head
+        if not current:
+            return
+        while True:
+            yield current.symbol
+            current = current.next
+            if current == self.head:
+                break
+
 class TypingProgram:
     def __init__(self):
         """Initialize the program, load ticker symbols, and set up the GUI."""
         self.load_ticker_symbols()
-        self.current_index = 0
-        self.prev_index = 0
-        self.prev_key_value = ""
         self.controller = Controller()
         self.mouse = MouseController()
+        self.current_node = self.ticker_symbols.head if self.ticker_symbols.head else None
         
         # Determine the appropriate modifier key for shortcuts
         if platform.system() == "Darwin":  # macOS
@@ -26,24 +82,24 @@ class TypingProgram:
         self.create_gui()
 
     def load_ticker_symbols(self):
-        """Load ticker symbols from a file, or initialize an empty list if the file doesn't exist."""
+        """Load ticker symbols into a circular doubly-linked list."""
+        self.ticker_symbols = TickerLinkedList()
         if os.path.exists("ticker_symbols.txt"):
             with open("ticker_symbols.txt", "r") as file:
-                self.ticker_symbols = [line.strip() for line in file.readlines()]
-        else:
-            self.ticker_symbols = []
+                for line in file:
+                    self.ticker_symbols.add(line.strip().upper())
 
     def save_ticker_symbols(self):
-        """Save the current list of ticker symbols to a file."""
+        """Save the ticker symbols from the linked list back to the file."""
         with open("ticker_symbols.txt", "w") as file:
-            for ticker_symbol in self.ticker_symbols:
-                file.write(ticker_symbol + "\n")
+            for symbol in self.ticker_symbols:
+                file.write(symbol + "\n")
 
     def add_ticker_symbol(self):
         """Prompt the user to input a new ticker symbol and add it to the list."""
         new_ticker = simpledialog.askstring("Add Ticker Symbol", "Enter the new ticker symbol:")
         if new_ticker:
-            self.ticker_symbols.append(new_ticker.upper())
+            self.ticker_symbols.add(new_ticker.upper())
             self.save_ticker_symbols()
             messagebox.showinfo("Success", f"Added '{new_ticker.upper()}' to the list.")
             self.update_ticker_list()
@@ -52,16 +108,13 @@ class TypingProgram:
     def remove_ticker_symbol(self, ticker_to_remove=None):
         """Remove a ticker symbol directly from the list."""
         if ticker_to_remove:
-            ticker_to_remove_upper = ticker_to_remove.upper()
-            for symbol in self.ticker_symbols:
-                if symbol.upper() == ticker_to_remove_upper:
-                    self.ticker_symbols.remove(symbol)
-                    self.save_ticker_symbols()
-                    messagebox.showinfo("Success", f"Removed '{symbol}' from the list.")
-                    self.update_ticker_list()
-                    self.root.focus_force()
-                    return
-        messagebox.showerror("Error", "Ticker symbol not found.")
+            if self.ticker_symbols.remove(ticker_to_remove.upper()):
+                self.save_ticker_symbols()
+                messagebox.showinfo("Success", f"Removed '{ticker_to_remove.upper()}' from the list.")
+                self.update_ticker_list()
+                self.root.focus_force()
+            else:
+                messagebox.showerror("Error", "Ticker symbol not found.")
 
     def create_gui(self):
         """Create the main GUI window."""
@@ -111,32 +164,16 @@ class TypingProgram:
         """Handle key press events to trigger actions based on arrow key inputs."""
         try:
             if key == Key.down:
-                # Down arrow key: Type current ticker symbol and move to the next
-                if self.prev_key_value == "up":  # Special handling for up-down sequence
-                    self.prev_index = self.current_index
-                    self.current_index = (self.current_index + 1) % len(self.ticker_symbols)
-                    self.prev_key_value = "up"
-                    self.type_word(self.current_index)
-                    return
-
-                self.type_word(self.current_index)
-                self.prev_index = self.current_index
-                self.current_index = (self.current_index + 1) % len(self.ticker_symbols)
-                self.prev_key_value = "down"
+                # Type the current ticker and move to the next
+                if self.current_node:
+                    self.type_word(self.current_node.symbol)
+                    self.current_node = self.current_node.next
 
             elif key == Key.up:
-                # Up arrow key: Type the previous ticker symbol
-                if self.prev_key_value == "down":  # Special handling for down-up sequence
-                    self.current_index = self.prev_index
-                    self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
-                    self.prev_key_value = "down"
-                    self.type_word(self.prev_index)
-                    return
-
-                self.current_index = self.prev_index
-                self.type_word(self.prev_index)
-                self.prev_index = (self.prev_index - 1 + len(self.ticker_symbols)) % len(self.ticker_symbols)
-                self.prev_key_value = "up"
+                # On the first "up" key press, type the current ticker
+                if self.current_node:
+                    self.type_word(self.current_node.symbol)  # Type the current symbol at index 0
+                    self.current_node = self.current_node.prev  # Move to the previous node afterward
 
             elif key == Key.left:
                 self.controller.press(self.shortcut_key)
@@ -145,32 +182,20 @@ class TypingProgram:
                 self.controller.release(self.shortcut_key)
 
             elif key == Key.right:
-                current_ticker = self.ticker_symbols[self.prev_index]
-                print("Prev Index: ", self.ticker_symbols[self.prev_index])
-                print("Current Index: ", self.ticker_symbols[self.current_index])
-
-                self.controller.press(self.shortcut_key)
-                self.controller.press('t')
-                self.controller.release('t')
-                self.controller.release(self.shortcut_key)
-
-                word_to_type = current_ticker + ' stock'
-                for char in word_to_type:
-                    self.controller.type(char)
-                    time.sleep(0.01)
-
-                self.controller.press(Key.enter)
-                self.controller.release(Key.enter)
-
-                time.sleep(1)
+                if self.current_node:
+                    word_to_type = self.current_node.symbol + ' stock'
+                    for char in word_to_type:
+                        self.controller.type(char)
+                        time.sleep(0.01)
+                    self.controller.press(Key.enter)
+                    self.controller.release(Key.enter)
 
         except AttributeError:
             pass
 
-    def type_word(self, index):
-        """Type the ticker symbol at the given index."""
-        word_to_type = self.ticker_symbols[index]
-        for char in word_to_type:
+    def type_word(self, word):
+        """Type a given word using the keyboard controller."""
+        for char in word:
             self.controller.type(char)
         self.controller.press(Key.enter)
         self.controller.release(Key.enter)
