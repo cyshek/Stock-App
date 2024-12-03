@@ -223,7 +223,6 @@ class TypingProgram:
         threading.Thread(target=self.listener.start).start()
         self.root.mainloop()
 
-
 # Start the TypingProgram
 if __name__ == "__main__":
     typing_program = TypingProgram()
