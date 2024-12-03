@@ -168,7 +168,7 @@ class TypingProgram:
                 if self.current_node:
                     if self.last_direction == "up":
                         # Reset to the node after the current one when switching direction
-                        self.current_node = self.current_node.next
+                        self.current_node = self.current_node.next.next
                     self.type_word(self.current_node.symbol)  # Type the current ticker
                     self.current_node = self.current_node.next  # Move to the next node
                     self.last_direction = "down"
@@ -177,7 +177,7 @@ class TypingProgram:
                 if self.current_node:
                     if self.last_direction == "down":
                         # Reset to the node before the current one when switching direction
-                        self.current_node = self.current_node.prev
+                        self.current_node = self.current_node.prev.prev
                     self.type_word(self.current_node.symbol)  # Type the current ticker
                     self.current_node = self.current_node.prev  # Move to the previous node
                     self.last_direction = "up"
@@ -189,11 +189,21 @@ class TypingProgram:
                 self.controller.release(self.shortcut_key)
 
             elif key == Key.right:
-                if self.current_node:
-                    word_to_type = self.current_node.symbol + ' stock'
+                if self.last_direction in ["up", "down"]:
+                    self.controller.press(self.shortcut_key)
+                    self.controller.press('t')
+                    self.controller.release('t')
+                    self.controller.release(self.shortcut_key)
+                    
+                    # Determine the word to type based on the direction
+                    next_symbol = self.current_node.next.symbol if self.last_direction == "up" else self.current_node.prev.symbol
+                    word_to_type = next_symbol + ' stock'
+                    
                     for char in word_to_type:
                         self.controller.type(char)
                         time.sleep(0.01)
+                    
+                    # Press Enter
                     self.controller.press(Key.enter)
                     self.controller.release(Key.enter)
 
