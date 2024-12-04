@@ -4,7 +4,7 @@ A program that allows users to navigate through a stock watchlist using the up a
 
 - Close the GUI tab to terminate
 - Press “arrow down & up” keys to navigate the watchlist
-- Press "arrow right" to open up a new tab with the 5-year chart of the current ticker symbol in Google
+- Press "arrow right" to open up a new tab with the current ticker symbol in Google
 - Press "arrow left" to close the tab
 - You can add or remove stocks by pressing either respective button
 
