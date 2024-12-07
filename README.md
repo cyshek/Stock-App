@@ -1,7 +1,11 @@
 # Ticker-symbol-typer
 A program that allows users to navigate through a stock watchlist using the up and down arrow keys. When a key is pressed, the program types the current stock ticker symbol and quickly updates to type the next stock in the chosen direction. This feature significantly speeds up the process of reviewing a watchlist.
 
-DISCLAIMER: I've only tested this in TradingView, as you can look up a stock by just typing the symbol and pressing "enter/return". I'm not sure if it works on other websites.
+<br/>
+
+**DISCLAIMER: I've only tested this in TradingView, as you can look up a stock by just typing the symbol and pressing "enter/return". I'm not sure if it works on other websites.**
+
+<br/>
 
 - Press “arrow down & up” keys to navigate the watchlist
 - Press "arrow right" to open up a new tab with the current ticker symbol in Google
