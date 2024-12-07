@@ -1,12 +1,11 @@
 # Ticker-symbol-typer
 A program that allows users to navigate through a stock watchlist using the up and down arrow keys. When a key is pressed, the program types the current stock ticker symbol and quickly updates to type the next stock in the chosen direction. This feature significantly speeds up the process of reviewing a watchlist.
 
-- Close the GUI tab to terminate
+DISCLAIMER: I've only tested this in TradingView, as you can look up a stock by just typing the symbol and pressing "enter/return". I'm not sure if it works on other websites.
+
 - Press “arrow down & up” keys to navigate the watchlist
 - Press "arrow right" to open up a new tab with the current ticker symbol in Google
 - Press "arrow left" to close the tab
-- You can add or remove stocks by pressing either respective button
-- You can bulk add and remove everything
 
 ## Steps (for Windows)
 1. Download the zip: https://drive.google.com/drive/folders/1eVDY6OlM9P0cRmuVEZ7RrlC4ArOdOfje?usp=sharing
