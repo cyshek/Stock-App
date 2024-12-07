@@ -111,14 +111,30 @@ class TypingProgram:
                 file.write(symbol + "\n")
 
     def add_ticker_symbol(self):
-        """Prompt the user to input a new ticker symbol and add it to the list."""
-        new_ticker = simpledialog.askstring("Add Ticker Symbol", "Enter the new ticker symbol:")
-        if new_ticker:
-            self.ticker_symbols.add(new_ticker.upper())
-            self.save_ticker_symbols()
-            messagebox.showinfo("Success", f"Added '{new_ticker.upper()}' to the list.")
-            self.update_ticker_list()
-            self.root.focus_force()
+        """Prompt the user to input a new ticker symbol using a custom dialog."""
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Add Ticker Symbol")
+        dialog.geometry("300x150")
+
+        label = ctk.CTkLabel(dialog, text="Enter the new ticker symbol:", font=("Arial", 14))
+        label.pack(pady=10)
+
+        entry = ctk.CTkEntry(dialog, width=200)
+        entry.pack(pady=10)
+
+        def on_submit():
+            new_ticker = entry.get().strip().upper()
+            if new_ticker:
+                self.ticker_symbols.add(new_ticker)
+                self.save_ticker_symbols()
+                messagebox.showinfo("Success", f"Added '{new_ticker}' to the list.")
+                self.update_ticker_list()
+            dialog.destroy()
+
+        submit_button = ctk.CTkButton(dialog, text="Submit", command=on_submit)
+        submit_button.pack(pady=10)
+
+        dialog.grab_set()  # Make the dialog modal
 
     def remove_ticker_symbol(self, ticker_to_remove=None):
         """Remove a ticker symbol directly from the list."""
