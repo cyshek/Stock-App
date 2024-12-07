@@ -6,8 +6,17 @@ A program that allows users to navigate through a stock watchlist using the up a
 - Press "arrow right" to open up a new tab with the current ticker symbol in Google
 - Press "arrow left" to close the tab
 - You can add or remove stocks by pressing either respective button
+- You can bulk add and remove everything
 
-### Prerequisites
+## Steps (for Windows)
+1. Download the zip: https://drive.google.com/drive/folders/1eVDY6OlM9P0cRmuVEZ7RrlC4ArOdOfje?usp=sharing
+2. Extract the files and move them to a new folder
+3. Open the application
+
+## If you are on MacOS or prefer to run the script manually
+
+Make sure you have Python installed.
+
 Required Python libraries:
 - `customtkinter`
 - `pynput`
