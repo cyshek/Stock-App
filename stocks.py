@@ -6,6 +6,7 @@ import threading
 from pynput.keyboard import Controller, Key, Listener
 from pynput.mouse import Button, Controller as MouseController
 import platform
+import sys
 
 class TickerNode:
     """Node for the circular doubly-linked list."""
@@ -85,8 +86,16 @@ class TypingProgram:
     def load_ticker_symbols(self):
         """Load ticker symbols into a circular doubly-linked list."""
         self.ticker_symbols = TickerLinkedList()
-        if os.path.exists("ticker_symbols.txt"):
-            with open("ticker_symbols.txt", "r") as file:
+
+        if getattr(sys, '_MEIPASS', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        
+        data_path = os.path.join(base_path, "ticker_symbols.txt")
+        
+        if os.path.exists(data_path):
+            with open(data_path, "r") as file:
                 for line in file:
                     self.ticker_symbols.add(line.strip().upper())
 
@@ -117,6 +126,15 @@ class TypingProgram:
             else:
                 messagebox.showerror("Error", "Ticker symbol not found.")
 
+    def remove_all_ticker_symbols(self):
+        """Remove all ticker symbols from the list."""
+        if messagebox.askyesno("Confirm", "Are you sure you want to remove all ticker symbols?"):
+            self.ticker_symbols = TickerLinkedList()  # Reset the linked list
+            self.save_ticker_symbols()
+            self.update_ticker_list()
+            messagebox.showinfo("Success", "All ticker symbols have been removed.")
+            self.root.focus_force()
+
     def create_gui(self):
         """Create the main GUI window."""
         self.root = ctk.CTk()
@@ -132,7 +150,10 @@ class TypingProgram:
         self.scrollable_frame.pack(pady=10)
 
         add_button = ctk.CTkButton(self.root, text="Add Ticker Symbol", command=self.add_ticker_symbol, width=200)
-        add_button.pack(pady=20)
+        add_button.pack(pady=10)
+
+        remove_all_button = ctk.CTkButton(self.root, text="Remove All", command=self.remove_all_ticker_symbols, width=200)
+        remove_all_button.pack(pady=10)
 
         self.update_ticker_list()
 
