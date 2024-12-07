@@ -156,25 +156,59 @@ class TypingProgram:
             messagebox.showinfo("Success", "All ticker symbols have been removed.")
             self.root.focus_force()
 
+    def bulk_add_ticker_symbols(self):
+        """Prompt the user to input multiple ticker symbols and add them."""
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Bulk Add Ticker Symbols")
+        dialog.geometry("400x300")
+
+        label = ctk.CTkLabel(dialog, text="Enter ticker symbols (comma-separated):", font=("Arial", 14))
+        label.pack(pady=10)
+
+        text_area = ctk.CTkTextbox(dialog, height=150, width=350)
+        text_area.pack(pady=10)
+
+        def on_submit():
+            symbols = text_area.get("1.0", "end").strip().upper()
+            if symbols:
+                symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+                for symbol in symbol_list:
+                    self.ticker_symbols.add(symbol)
+                self.save_ticker_symbols()
+                messagebox.showinfo("Success", "Added all valid symbols to the list.")
+                self.update_ticker_list()
+            dialog.destroy()
+
+        submit_button = ctk.CTkButton(dialog, text="Submit", command=on_submit)
+        submit_button.pack(pady=10)
+
+        dialog.grab_set()
+
     def create_gui(self):
         """Create the main GUI window."""
         self.root = ctk.CTk()
         self.root.title("Ticker Symbol Manager")
-        self.root.geometry("800x700")
+        self.root.geometry("900x800")
 
         ctk.set_appearance_mode("light")
 
         title_label = ctk.CTkLabel(self.root, text="Stock Ticker Manager", font=("Arial", 28, "bold"))
         title_label.pack(pady=20)
 
-        self.scrollable_frame = ctk.CTkScrollableFrame(self.root, height=500, width=750)
+        self.scrollable_frame = ctk.CTkScrollableFrame(self.root, height=600, width=850)
         self.scrollable_frame.pack(pady=10)
 
-        add_button = ctk.CTkButton(self.root, text="Add Ticker Symbol", command=self.add_ticker_symbol, width=200)
-        add_button.pack(pady=10)
+        button_frame = ctk.CTkFrame(self.root)
+        button_frame.pack(pady=10)
 
-        remove_all_button = ctk.CTkButton(self.root, text="Remove All", command=self.remove_all_ticker_symbols, width=200)
-        remove_all_button.pack(pady=10)
+        add_button = ctk.CTkButton(button_frame, text="Add Ticker Symbol", command=self.add_ticker_symbol, width=200)
+        add_button.grid(row=0, column=0, padx=10)
+
+        bulk_add_button = ctk.CTkButton(button_frame, text="Bulk Add Ticker Symbols", command=self.bulk_add_ticker_symbols, width=200)
+        bulk_add_button.grid(row=0, column=1, padx=10)
+
+        remove_all_button = ctk.CTkButton(button_frame, text="Remove All", command=self.remove_all_ticker_symbols, width=200)
+        remove_all_button.grid(row=0, column=2, padx=10)
 
         self.update_ticker_list()
 
