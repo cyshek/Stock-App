@@ -87,21 +87,26 @@ class TypingProgram:
         """Load ticker symbols into a circular doubly-linked list."""
         self.ticker_symbols = TickerLinkedList()
 
-        if getattr(sys, '_MEIPASS', False):
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.dirname(os.path.abspath(__file__))
-        
+        # Get the directory of the running script or executable
+        base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
         data_path = os.path.join(base_path, "ticker_symbols.txt")
-        
-        if os.path.exists(data_path):
-            with open(data_path, "r") as file:
-                for line in file:
-                    self.ticker_symbols.add(line.strip().upper())
+
+        # Check if the file exists; if not, create it
+        if not os.path.exists(data_path):
+            with open(data_path, "w") as file:
+                pass  # Create an empty file
+
+        # Load existing ticker symbols
+        with open(data_path, "r") as file:
+            for line in file:
+                self.ticker_symbols.add(line.strip().upper())
 
     def save_ticker_symbols(self):
         """Save the ticker symbols from the linked list back to the file."""
-        with open("ticker_symbols.txt", "w") as file:
+        base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+        data_path = os.path.join(base_path, "ticker_symbols.txt")
+
+        with open(data_path, "w") as file:
             for symbol in self.ticker_symbols:
                 file.write(symbol + "\n")
 
