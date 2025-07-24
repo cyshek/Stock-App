@@ -71,6 +71,7 @@ class TickerLinkedList:
 class TypingProgram:
     def __init__(self):
         """Initialize the program, load ticker symbols, and set up the GUI."""
+        self.symbol_widgets = {}
         scraped_tickers = run_scraper()
 
         base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -143,19 +144,29 @@ class TypingProgram:
 
         def on_submit():
             new_ticker = entry.get().strip().upper()
-            if new_ticker:
+            if not new_ticker:
+                dialog.destroy()
+                return
+
+            def do_add():
                 self.ticker_symbols.add(new_ticker)
                 self.save_ticker_symbols()
 
-                # Also save to original.txt
+                # Save to original.txt
                 base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
                 original_path = os.path.join(base_path, "original.txt")
                 with open(original_path, "a") as orig_file:
                     orig_file.write(new_ticker + "\n")
 
-                messagebox.showinfo("Success", f"Added '{new_ticker}' to the list.")
-                self.update_ticker_list()
-            dialog.destroy()
+                # Back to main thread
+                self.root.after(0, lambda: finalize_add(new_ticker))
+
+            def finalize_add(ticker):
+                self._create_symbol_row(ticker)
+                messagebox.showinfo("Success", f"Added '{ticker}' to the list.")
+                dialog.destroy()
+
+            threading.Thread(target=do_add).start()
 
         submit_button = ctk.CTkButton(dialog, text="Submit", command=on_submit)
         submit_button.pack(pady=10)
@@ -164,15 +175,17 @@ class TypingProgram:
 
     def remove_ticker_symbol(self, ticker_to_remove=None):
         """Remove a ticker symbol directly from the list."""
-        if ticker_to_remove:
-            if self.ticker_symbols.remove(ticker_to_remove.upper()):
+        if not ticker_to_remove:
+            return
+
+        def do_removal():
+            removed = self.ticker_symbols.remove(ticker_to_remove.upper())
+            if removed:
                 self.save_ticker_symbols()
 
-                # Also remove from original.txt
+                # Remove from original.txt
                 base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
                 original_path = os.path.join(base_path, "original.txt")
-
-                # Rewrite file without the removed symbol
                 if os.path.exists(original_path):
                     with open(original_path, "r") as f:
                         lines = [line.strip() for line in f if line.strip().upper() != ticker_to_remove.upper()]
@@ -180,11 +193,20 @@ class TypingProgram:
                         for line in lines:
                             f.write(line + "\n")
 
-                messagebox.showinfo("Success", f"Removed '{ticker_to_remove.upper()}' from the list.")
-                self.update_ticker_list()
-                self.root.focus_force()
+                # Call back on main thread to update UI
+                self.root.after(0, lambda: self._finalize_removal(ticker_to_remove.upper()))
             else:
-                messagebox.showerror("Error", "Ticker symbol not found.")
+                self.root.after(0, lambda: messagebox.showerror("Error", "Ticker symbol not found."))
+
+        threading.Thread(target=do_removal).start()
+
+    def _finalize_removal(self, symbol):
+        """Update UI after background removal completes."""
+        frame = self.symbol_widgets.pop(symbol, None)
+        if frame:
+            frame.destroy()
+        messagebox.showinfo("Success", f"Removed '{symbol}' from the list.")
+        self.root.focus_force()
 
     def remove_all_ticker_symbols(self):
         """Remove all ticker symbols from the list."""
@@ -218,23 +240,34 @@ class TypingProgram:
 
         def on_submit():
             symbols = text_area.get("1.0", "end").strip().upper()
-            if symbols:
-                symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+            if not symbols:
+                dialog.destroy()
+                return
+
+            symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+
+            def do_bulk_add():
                 for symbol in symbol_list:
                     self.ticker_symbols.add(symbol)
                 self.save_ticker_symbols()
 
-                # Also save to original.txt
+                # Save to original.txt
                 base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
                 original_path = os.path.join(base_path, "original.txt")
                 with open(original_path, "a") as orig_file:
                     for symbol in symbol_list:
                         orig_file.write(symbol + "\n")
 
+                # Back to main thread
+                self.root.after(0, lambda: finalize_bulk_add(symbol_list))
 
+            def finalize_bulk_add(symbols_added):
+                for symbol in symbols_added:
+                    self._create_symbol_row(symbol)
                 messagebox.showinfo("Success", "Added all valid symbols to the list.")
-                self.update_ticker_list()
-            dialog.destroy()
+                dialog.destroy()
+
+            threading.Thread(target=do_bulk_add).start()
 
         submit_button = ctk.CTkButton(dialog, text="Submit", command=on_submit)
         submit_button.pack(pady=10)
@@ -269,24 +302,34 @@ class TypingProgram:
 
         self.update_ticker_list()
 
-    def update_ticker_list(self):
-        """Update the ticker list display with the current symbols."""
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+    def update_ticker_list(self, full_refresh=True):
+        """Update the ticker list display. Supports partial updates."""
+        if full_refresh:
+            for widget in self.scrollable_frame.winfo_children():
+                widget.destroy()
+            self.symbol_widgets.clear()
 
-        for symbol in self.ticker_symbols:
-            symbol_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#f0f0f0", height=50)
-            symbol_frame.pack(fill="x", pady=5)
+            for symbol in self.ticker_symbols:
+                self._create_symbol_row(symbol)
 
-            symbol_frame.bind("<Enter>", lambda e, frame=symbol_frame: frame.configure(fg_color="#d3d3d3"))
-            symbol_frame.bind("<Leave>", lambda e, frame=symbol_frame: frame.configure(fg_color="#f0f0f0"))
+    def _create_symbol_row(self, symbol):
+        """Create a row in the GUI for a single ticker symbol."""
+        if symbol in self.symbol_widgets:
+            return  # already added
 
-            ticker_label = ctk.CTkLabel(symbol_frame, text=symbol, font=("Arial", 16), anchor="w")
-            ticker_label.place(relx=0.02, rely=0.5, anchor="w")
+        symbol_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#f0f0f0", height=50)
+        symbol_frame.pack(fill="x", pady=5)
+        self.symbol_widgets[symbol] = symbol_frame
 
-            remove_button = ctk.CTkButton(symbol_frame, text="Remove", width=100,
-                                          command=lambda sym=symbol: self.remove_ticker_symbol(sym))
-            remove_button.place(relx=0.95, rely=0.5, anchor="e")
+        symbol_frame.bind("<Enter>", lambda e, frame=symbol_frame: frame.configure(fg_color="#d3d3d3"))
+        symbol_frame.bind("<Leave>", lambda e, frame=symbol_frame: frame.configure(fg_color="#f0f0f0"))
+
+        ticker_label = ctk.CTkLabel(symbol_frame, text=symbol, font=("Arial", 16), anchor="w")
+        ticker_label.place(relx=0.02, rely=0.5, anchor="w")
+
+        remove_button = ctk.CTkButton(symbol_frame, text="Remove", width=100,
+                                    command=lambda sym=symbol: self.remove_ticker_symbol(sym))
+        remove_button.place(relx=0.95, rely=0.5, anchor="e")
 
     def terminate_program(self):
         """Terminate the keyboard listener and close the GUI."""
