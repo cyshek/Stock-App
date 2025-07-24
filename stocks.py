@@ -8,6 +8,8 @@ from pynput.mouse import Button, Controller as MouseController
 import platform
 import sys
 
+from finviz_scraper import main as run_scraper
+
 class TickerNode:
     """Node for the circular doubly-linked list."""
     def __init__(self, symbol):
@@ -69,6 +71,23 @@ class TickerLinkedList:
 class TypingProgram:
     def __init__(self):
         """Initialize the program, load ticker symbols, and set up the GUI."""
+        scraped_tickers = run_scraper()
+
+        base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+        backup_path = os.path.join(base_path, "original.txt")
+
+        backup_tickers = []
+        if os.path.exists(backup_path):
+            with open(backup_path, "r") as backup_file:
+                backup_tickers = [line.strip().upper() for line in backup_file if line.strip()]
+
+        combined_tickers = sorted(set(ticker.upper() for ticker in scraped_tickers + backup_tickers))
+
+        data_path = os.path.join(base_path, "ticker_symbols.txt")
+        with open(data_path, "w") as f:
+            for ticker in combined_tickers:
+                f.write(ticker + "\n")
+
         self.load_ticker_symbols()
         self.controller = Controller()
         self.mouse = MouseController()
