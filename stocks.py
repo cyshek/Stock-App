@@ -146,6 +146,13 @@ class TypingProgram:
             if new_ticker:
                 self.ticker_symbols.add(new_ticker)
                 self.save_ticker_symbols()
+
+                # Also save to original.txt
+                base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+                original_path = os.path.join(base_path, "original.txt")
+                with open(original_path, "a") as orig_file:
+                    orig_file.write(new_ticker + "\n")
+
                 messagebox.showinfo("Success", f"Added '{new_ticker}' to the list.")
                 self.update_ticker_list()
             dialog.destroy()
@@ -160,6 +167,19 @@ class TypingProgram:
         if ticker_to_remove:
             if self.ticker_symbols.remove(ticker_to_remove.upper()):
                 self.save_ticker_symbols()
+
+                # Also remove from original.txt
+                base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+                original_path = os.path.join(base_path, "original.txt")
+
+                # Rewrite file without the removed symbol
+                if os.path.exists(original_path):
+                    with open(original_path, "r") as f:
+                        lines = [line.strip() for line in f if line.strip().upper() != ticker_to_remove.upper()]
+                    with open(original_path, "w") as f:
+                        for line in lines:
+                            f.write(line + "\n")
+
                 messagebox.showinfo("Success", f"Removed '{ticker_to_remove.upper()}' from the list.")
                 self.update_ticker_list()
                 self.root.focus_force()
@@ -171,6 +191,15 @@ class TypingProgram:
         if messagebox.askyesno("Confirm", "Are you sure you want to remove all ticker symbols?"):
             self.ticker_symbols = TickerLinkedList()  # Reset the linked list
             self.save_ticker_symbols()
+
+            # Also clear original.txt
+            base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+            original_path = os.path.join(base_path, "original.txt")
+
+            if os.path.exists(original_path):
+                with open(original_path, "w") as f:
+                    pass  # Empty the file
+
             self.update_ticker_list()
             messagebox.showinfo("Success", "All ticker symbols have been removed.")
             self.root.focus_force()
@@ -194,6 +223,15 @@ class TypingProgram:
                 for symbol in symbol_list:
                     self.ticker_symbols.add(symbol)
                 self.save_ticker_symbols()
+
+                # Also save to original.txt
+                base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+                original_path = os.path.join(base_path, "original.txt")
+                with open(original_path, "a") as orig_file:
+                    for symbol in symbol_list:
+                        orig_file.write(symbol + "\n")
+
+
                 messagebox.showinfo("Success", "Added all valid symbols to the list.")
                 self.update_ticker_list()
             dialog.destroy()
