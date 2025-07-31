@@ -75,19 +75,33 @@ class TypingProgram:
         scraped_tickers = run_scraper()
 
         base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-        backup_path = os.path.join(base_path, "original.txt")
 
+        # Load backup tickers from original.txt
+        backup_path = os.path.join(base_path, "original.txt")
         backup_tickers = []
         if os.path.exists(backup_path):
             with open(backup_path, "r") as backup_file:
                 backup_tickers = [line.strip().upper() for line in backup_file if line.strip()]
 
+        # Load excluded tickers from excluded.txt (new!)
+        excluded_path = os.path.join(base_path, "excluded.txt")
+        excluded_tickers = []
+        if os.path.exists(excluded_path):
+            with open(excluded_path, "r") as excl_file:
+                excluded_tickers = [line.strip().upper() for line in excl_file if line.strip()]
+
+        # Combine scraped + backup tickers
         combined_tickers = sorted(set(ticker.upper() for ticker in scraped_tickers + backup_tickers))
 
-        data_path = os.path.join(base_path, "ticker_symbols.txt")
+        # Filter out excluded tickers
+        filtered_tickers = [t for t in combined_tickers if t not in excluded_tickers]
+
+        # Write filtered tickers to original_and_fetched.txt
+        data_path = os.path.join(base_path, "original_and_fetched.txt")
         with open(data_path, "w") as f:
-            for ticker in combined_tickers:
+            for ticker in filtered_tickers:
                 f.write(ticker + "\n")
+
 
         self.load_ticker_symbols()
         self.controller = Controller()
@@ -109,7 +123,7 @@ class TypingProgram:
 
         # Get the directory of the running script or executable
         base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-        data_path = os.path.join(base_path, "ticker_symbols.txt")
+        data_path = os.path.join(base_path, "original_and_fetched.txt")
 
         # Check if the file exists; if not, create it
         if not os.path.exists(data_path):
@@ -124,7 +138,7 @@ class TypingProgram:
     def save_ticker_symbols(self):
         """Save the ticker symbols from the linked list back to the file."""
         base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-        data_path = os.path.join(base_path, "ticker_symbols.txt")
+        data_path = os.path.join(base_path, "original_and_fetched.txt")
 
         with open(data_path, "w") as file:
             for symbol in self.ticker_symbols:
@@ -181,22 +195,32 @@ class TypingProgram:
         def do_removal():
             removed = self.ticker_symbols.remove(ticker_to_remove.upper())
             if removed:
-                self.save_ticker_symbols()
-
-                # Remove from original.txt
                 base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-                original_path = os.path.join(base_path, "original.txt")
-                if os.path.exists(original_path):
-                    with open(original_path, "r") as f:
-                        lines = [line.strip() for line in f if line.strip().upper() != ticker_to_remove.upper()]
-                    with open(original_path, "w") as f:
-                        for line in lines:
-                            f.write(line + "\n")
+                excluded_path = os.path.join(base_path, "excluded.txt")
 
-                # Call back on main thread to update UI
-                self.root.after(0, lambda: self._finalize_removal(ticker_to_remove.upper()))
+                # Load current excluded tickers
+                excluded_tickers = []
+                if os.path.exists(excluded_path):
+                    with open(excluded_path, "r") as excl_file:
+                        excluded_tickers = [line.strip().upper() for line in excl_file if line.strip()]
+
+                ticker_upper = ticker_to_remove.upper()
+
+                # Add to excluded if not already present
+                if ticker_upper not in excluded_tickers:
+                    with open(excluded_path, "a") as excl_file:
+                        excl_file.write(ticker_upper + "\n")
+
+                # Now save the filtered ticker list (excluding excluded tickers)
+                # Reload combined tickers from original.txt + scraper
+                # (You can reuse your init logic or just save current in-memory list)
+                self.save_ticker_symbols()  # This saves current linked list to original_and_fetched.txt
+
+                # UI update on main thread
+                self.root.after(0, lambda: self._finalize_removal(ticker_upper))
             else:
                 self.root.after(0, lambda: messagebox.showerror("Error", "Ticker symbol not found."))
+
 
         threading.Thread(target=do_removal).start()
 
