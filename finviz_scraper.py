@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 
-def get_finviz_tickers(url, output_file='ticker_symbols.txt'):
+def get_finviz_tickers(url, output_file='original_and_fetched.txt'):
     
     session = requests.Session()
     headers = {
