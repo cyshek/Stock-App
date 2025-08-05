@@ -14,8 +14,8 @@ def get_finviz_tickers(url, output_file='original_and_fetched.txt'):
     
     tickers = []
     page = 1
-    delay = 0.1     # fastest safe request delay
-    backoff = 10     # backoff time if rate-limited
+    delay = 0.1
+    backoff = 10
 
     while True:
         paged_url = f"{url}&r={1 + (page - 1) * 20}"
@@ -31,13 +31,13 @@ def get_finviz_tickers(url, output_file='original_and_fetched.txt'):
         if res.status_code == 429:
             print(f"Rate-limited on page {page}, backing off {backoff}s...")
             time.sleep(backoff)
-            continue  # retry the same page
+            continue
 
         soup = BeautifulSoup(res.text, 'html.parser')
         rows = soup.select('table.screener_table tr[valign="top"]')
 
         if not rows:
-            break  # no more results
+            break
 
         for row in rows:
             cols = row.select('td')
@@ -55,13 +55,9 @@ def get_finviz_tickers(url, output_file='original_and_fetched.txt'):
     print(f"Exported {len(tickers)} tickers to {output_file}")
     return tickers
 
-def main():
-    stock_url = "https://finviz.com/screener.ashx?v=111&f=cap_largeover,ta_alltime_b40h"
-    etf_url = "https://finviz.com/screener.ashx?v=111&f=ind_exchangetradedfund,sh_avgvol_o1000,ta_alltime_b40h"
-
+def main(stock_url: str, etf_url: str) -> list:
     stock_tickers = get_finviz_tickers(stock_url)
-    etf_tickers = get_finviz_tickers(etf_url)
-
+    etf_tickers   = get_finviz_tickers(etf_url)
     combined = sorted(set(stock_tickers + etf_tickers))
     return combined
 
