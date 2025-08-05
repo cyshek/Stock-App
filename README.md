@@ -10,3 +10,9 @@ A program that allows users to navigate through a stock watchlist using the up a
 - Press “arrow down & up” keys to navigate the watchlist
 - Press "arrow right" to open up a new tab with the current ticker symbol in Google
 - Press "arrow left" to close the tab
+
+<br/>
+
+**Run the application by unzipping the files, then navigate to the app within the Stock Navigator Folder.**
+
+<br/>
